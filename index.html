@@ -1,273 +1,343 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>台灣實機風娃娃機</title>
-<style>*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#171717;font-family:-apple-system,sans-serif;touch-action:none}canvas{display:block}#hud,#msg,#joy,#drop{position:fixed;z-index:10}#hud{top:12px;left:12px;background:#111c;color:#fff;padding:9px;border-radius:10px;font-weight:800}#msg{top:12px;left:50%;transform:translateX(-50%);background:#111c;color:#fff;padding:9px 13px;border-radius:10px}#joy{left:22px;bottom:25px;width:140px;height:140px;border-radius:50%;background:#ffffff22;border:1px solid #ffffff66}#knob{position:absolute;left:42px;top:42px;width:56px;height:56px;border-radius:50%;background:#fff;box-shadow:0 5px 15px #0007}#drop{right:25px;bottom:38px;width:110px;height:110px;border-radius:50%;border:8px solid #ffaaaa;background:#e54141;color:white;font-size:20px;font-weight:900}</style></head>
-<body><div id="hud">洞口：左前方<br>代幣 <span id="coins">30</span><br>出貨 <span id="score">0</span></div><div id="msg">可甩爪・真洞口：把公仔盒送進左前方落洞</div><div id="joy"><div id="knob"></div></div><button id="drop">下爪</button>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#f2c116">
+<title>台灣實機娃娃機 V2</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#171717;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;touch-action:none}
+#app{position:fixed;inset:0}
+canvas{display:block;width:100%;height:100%}
+
+#hud{position:fixed;z-index:20;left:12px;top:calc(env(safe-area-inset-top) + 10px);background:#111c;color:#fff;padding:9px 11px;border-radius:10px;font-size:12px;font-weight:800;line-height:1.55;box-shadow:0 4px 16px #0006}
+#msg{position:fixed;z-index:20;top:calc(env(safe-area-inset-top) + 12px);left:50%;transform:translateX(-50%);background:#111c;color:#fff;padding:8px 13px;border-radius:10px;font-size:12px;font-weight:800;white-space:nowrap}
+#adminBtn{position:fixed;z-index:22;right:12px;top:calc(env(safe-area-inset-top) + 10px);border:0;border-radius:10px;background:#111c;color:#fff;padding:9px 11px;font-weight:800}
+#viewBtn{position:fixed;z-index:22;right:12px;top:calc(env(safe-area-inset-top) + 50px);border:0;border-radius:10px;background:#111c;color:#fff;padding:9px 11px;font-weight:800}
+
+#joy{position:fixed;z-index:30;left:20px;bottom:calc(env(safe-area-inset-bottom) + 24px);width:142px;height:142px;border-radius:50%;background:#ffffff20;border:1px solid #ffffff66;backdrop-filter:blur(6px);box-shadow:inset 0 0 28px #fff2}
+#knob{position:absolute;left:42px;top:42px;width:58px;height:58px;border-radius:50%;background:#f7f7f7;box-shadow:0 6px 18px #0008}
+#drop{position:fixed;z-index:30;right:25px;bottom:calc(env(safe-area-inset-bottom) + 38px);width:112px;height:112px;border-radius:50%;border:8px solid #ffb0b0;background:#df3f3f;color:#fff;font-size:20px;font-weight:900;box-shadow:0 8px 20px #0008}
+#drop:disabled{opacity:.45}
+
+#adminPanel{position:fixed;z-index:100;inset:0;background:#0009;display:none;align-items:center;justify-content:center;padding:18px}
+#adminPanel.show{display:flex}
+.card{width:min(460px,100%);max-height:90vh;overflow:auto;background:#f4efe3;color:#222;border-radius:18px;padding:18px;box-shadow:0 20px 70px #000c}
+.card h2{margin:0 0 8px}.small{font-size:11px;color:#666;line-height:1.5;margin-bottom:12px}
+.row{display:grid;grid-template-columns:1fr 130px 44px;gap:8px;align-items:center;margin:10px 0}
+.row input{width:130px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.actions button{border:0;border-radius:11px;padding:11px;font-weight:900}
+.save{background:#e0b718}.neutral{background:#ddd}.danger{background:#d84b4b;color:#fff}
+
+#error{display:none;position:fixed;z-index:200;left:10px;right:10px;bottom:10px;background:#8b0000;color:white;padding:10px;border-radius:8px;font:12px sans-serif}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="hud">代幣 <span id="coins">30</span><br>出貨 <span id="score">0</span><br>保夾倒數 <span id="guarantee">10</span></div>
+<div id="msg">快速反打搖桿可以甩爪</div>
 <button id="adminBtn">後台</button>
+<button id="viewBtn">視角</button>
+<div id="joy"><div id="knob"></div></div>
+<button id="drop">下爪</button>
+
 <div id="adminPanel">
-  <div class="adminCard">
-    <h2>娃娃機後台設定</h2>
-    <div class="tiny">設定會儲存在這台裝置的瀏覽器，下次開啟會保留。</div>
-
-    <div class="adminRow"><label>弱爪爪力</label><input id="weakPower" type="range" min="10" max="100" value="48"><span id="weakPowerV">48</span></div>
-    <div class="adminRow"><label>強爪爪力</label><input id="strongPower" type="range" min="10" max="100" value="86"><span id="strongPowerV">86</span></div>
-    <div class="adminRow"><label>保夾局數</label><input id="guaranteeEvery" type="range" min="2" max="30" value="10"><span id="guaranteeEveryV">10</span></div>
-    <div class="adminRow"><label>滑爪機率</label><input id="slipChance" type="range" min="0" max="80" value="28"><span id="slipChanceV">28</span></div>
-    <div class="adminRow"><label>公仔盒重量</label><input id="boxMass" type="range" min="40" max="150" value="80"><span id="boxMassV">80</span></div>
-    <div class="adminRow"><label>平台摩擦力</label><input id="friction" type="range" min="20" max="90" value="55"><span id="frictionV">55</span></div>
-    <div class="adminRow"><label>公仔盒數量</label><input id="boxCount" type="range" min="6" max="36" value="24"><span id="boxCountV">24</span></div>
-    <div class="adminRow"><label>盒子尺寸</label><input id="boxScale" type="range" min="70" max="130" value="100"><span id="boxScaleV">100</span></div>
-    <div class="adminRow"><label>甩爪幅度</label><input id="swingPower" type="range" min="20" max="100" value="60"><span id="swingPowerV">60</span></div>
-
-    <div class="adminActions">
-      <button class="saveBtn" id="saveAdmin">儲存設定</button>
-      <button class="resetBtn" id="closeAdmin">關閉</button>
-      <button class="resetBtn" id="respawn">重新擺盒</button>
-      <button class="dangerBtn" id="resetAll">恢復預設</button>
+  <div class="card">
+    <h2>機台後台</h2>
+    <div class="small">以台灣選物販賣機玩法為基準。設定儲存在瀏覽器。</div>
+    <div class="row"><label>弱爪</label><input id="weakPower" type="range" min="10" max="100" value="46"><span id="weakPowerV">46</span></div>
+    <div class="row"><label>強爪</label><input id="strongPower" type="range" min="10" max="100" value="88"><span id="strongPowerV">88</span></div>
+    <div class="row"><label>保夾局數</label><input id="guaranteeEvery" type="range" min="3" max="30" value="10"><span id="guaranteeEveryV">10</span></div>
+    <div class="row"><label>滑爪率</label><input id="slipChance" type="range" min="0" max="80" value="30"><span id="slipChanceV">30</span></div>
+    <div class="row"><label>盒重</label><input id="boxMass" type="range" min="40" max="150" value="82"><span id="boxMassV">82</span></div>
+    <div class="row"><label>平台摩擦</label><input id="friction" type="range" min="20" max="90" value="56"><span id="frictionV">56</span></div>
+    <div class="row"><label>盒數量</label><input id="boxCount" type="range" min="8" max="36" value="24"><span id="boxCountV">24</span></div>
+    <div class="row"><label>盒尺寸</label><input id="boxScale" type="range" min="75" max="130" value="100"><span id="boxScaleV">100</span></div>
+    <div class="row"><label>甩爪幅度</label><input id="swingPower" type="range" min="20" max="100" value="62"><span id="swingPowerV">62</span></div>
+    <div class="actions">
+      <button class="save" id="saveAdmin">儲存</button>
+      <button class="neutral" id="closeAdmin">關閉</button>
+      <button class="neutral" id="respawn">重新擺盒</button>
+      <button class="danger" id="resetAdmin">恢復預設</button>
     </div>
   </div>
 </div>
+
+<div id="error"></div>
+
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js';
 import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
-const $=s=>document.querySelector(s),scene=new THREE.Scene();
 
-const defaults={weakPower:48,strongPower:86,guaranteeEvery:10,slipChance:28,boxMass:80,friction:55,boxCount:24,boxScale:100,swingPower:60};
-let settings=Object.assign({},defaults,JSON.parse(localStorage.getItem('twClawAdmin')||'{}'));
-let playCount=0;
-scene.background=new THREE.Color(0x222222);
-const camera=new THREE.PerspectiveCamera(46,innerWidth/innerHeight,.1,100);camera.position.set(0,4.6,10.7);camera.lookAt(0,2.7,0);
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;document.body.prepend(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xffffff,0x333333,2));const light=new THREE.DirectionalLight(0xffffff,2.6);light.position.set(4,9,6);light.castShadow=true;scene.add(light);
-const world=new CANNON.World({gravity:new CANNON.Vec3(0,-9.82,0)});world.solver.iterations=12;world.defaultContactMaterial.friction=settings.friction/100;
+const $=s=>document.querySelector(s);
+const defaults={weakPower:46,strongPower:88,guaranteeEvery:10,slipChance:30,boxMass:82,friction:56,boxCount:24,boxScale:100,swingPower:62};
+let settings=Object.assign({},defaults,JSON.parse(localStorage.getItem('twClawV2')||'{}'));
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x202020);
+scene.fog=new THREE.Fog(0x202020,16,30);
+
+const camera=new THREE.PerspectiveCamera(46,innerWidth/innerHeight,.1,100);
+let viewMode=0;
+function setView(){
+  if(viewMode===0){camera.position.set(0,4.9,11.7);camera.lookAt(0,2.7,0)}
+  else{camera.position.set(4.7,5.4,8.8);camera.lookAt(0,2.6,0)}
+}
+setView();
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+$('#app').appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x2c2c2c,1.8));
+const sun=new THREE.DirectionalLight(0xffffff,2.4);sun.position.set(4,9,7);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);scene.add(sun);
+for(const x of [-2.5,2.5]){const l=new THREE.PointLight(0xffffff,2.1,12);l.position.set(x,4.8,2.7);scene.add(l)}
+
+const world=new CANNON.World({gravity:new CANNON.Vec3(0,-9.82,0)});
+world.solver.iterations=14;
+world.defaultContactMaterial.friction=settings.friction/100;
+world.defaultContactMaterial.restitution=.025;
+
 const M=(c,r=.55,m=.05,t=false,o=1)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m,transparent:t,opacity:o});
-function box(w,h,d,m,x,y,z){const q=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);q.position.set(x,y,z);q.castShadow=q.receiveShadow=true;scene.add(q);return q}
-function floor(w,h,d,x,y,z,m){box(w,h,d,m,x,y,z);const b=new CANNON.Body({mass:0,shape:new CANNON.Box(new CANNON.Vec3(w/2,h/2,d/2)),position:new CANNON.Vec3(x,y,z)});world.addBody(b)}
-const stat=(w,h,d,x,y,z,m)=>floor(w,h,d,x,y,z,m);
-const Y=M(0xf1bd05,.45,.12),S=M(0xaeb2b5,.3,.75),W=M(0xeee9df,.9),G=M(0xcfefff,.05,0,true,.08),D=M(0x222,.7);
-box(6.4,.55,4.7,Y,0,6.2,0);box(6.4,.6,4.7,Y,0,-.1,0);[[-3.05,3,-2.1],[3.05,3,-2.1],[-3.05,3,2.1],[3.05,3,2.1]].forEach(p=>box(.22,6,.22,Y,...p));
-// 分割平台，左前方保留真正落洞
-floor(5.72,.18,1.95,0,.35,-.92,W);
-floor(2.55,.18,1.82,1.58,.35,.98,W);
-floor(1.42,.18,1.82,-2.15,.35,.98,W);
-floor(1.55,.18,.52,-1.35,.35,1.63,W);
-box(5.95,5.4,.03,G,0,3,2.1);box(.03,5.4,4.1,G,-3,3,0);box(.03,5.4,4.1,G,3,3,0);box(6,.14,.16,S,0,5.25,-.8);box(.16,.14,3.3,S,0,5.2,-.1);
-const cv=document.createElement('canvas');cv.width=1000;cv.height=300;let c=cv.getContext('2d');c.fillStyle='#f4c512';c.fillRect(0,0,1000,300);c.fillStyle='#fff7d5';c.fillRect(25,25,950,250);c.fillStyle='#e64a3b';c.textAlign='center';c.font='bold 80px sans-serif';c.fillText('LUCKY CATCH',500,120);c.fillStyle='#2b73bd';c.font='bold 45px sans-serif';c.fillText('PRIZE STATION',500,190);let sign=new THREE.Mesh(new THREE.PlaneGeometry(5.7,1.7),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)}));sign.position.set(0,6.1,2.35);scene.add(sign);
-box(5.9,.55,1,Y,0,.05,2.25);box(1.6,.5,.05,D,-1.55,.05,2.78);box(.4,.6,.06,D,1.55,.08,2.78);
-// 洞口尺寸（台灣景品台常見方形落洞）
-const holeX=-1.72, holeZ=1.02, holeW=1.55, holeD=1.18;
+function box(w,h,d,material,x,y,z,cast=true){
+  const q=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);
+  q.position.set(x,y,z);q.castShadow=cast;q.receiveShadow=true;scene.add(q);return q
+}
+function staticBox(w,h,d,x,y,z,material){
+  box(w,h,d,material,x,y,z,false);
+  const b=new CANNON.Body({mass:0,shape:new CANNON.Box(new CANNON.Vec3(w/2,h/2,d/2)),position:new CANNON.Vec3(x,y,z)});
+  world.addBody(b);return b
+}
 
-// 洞底與內壁做成真正下凹式取物通道
-box(holeW,.05,holeD,D,holeX,-.62,holeZ);
-stat(.12,.92,holeD,holeX-holeW/2,.00,holeZ,D);   // 左壁
-stat(.12,.92,holeD,holeX+holeW/2,.00,holeZ,D);   // 右壁
-stat(holeW,.92,.12,holeX,.00,holeZ-holeD/2,D);   // 後壁
-const ramp=new THREE.Mesh(new THREE.BoxGeometry(holeW*.9,.08,holeD*.75),D);
-ramp.position.set(holeX,-.28,holeZ+.04);
-ramp.rotation.x=-0.18;
-ramp.receiveShadow=true;scene.add(ramp);
-const rampBody=new CANNON.Body({mass:0,shape:new CANNON.Box(new CANNON.Vec3(holeW*.45,.04,holeD*.375))});
-rampBody.position.set(holeX,-.28,holeZ+.04);
-rampBody.quaternion.setFromEuler(-0.18,0,0);
-world.addBody(rampBody);
+const Y=M(0xf0bd08,.42,.14), Y2=M(0xe4ad00,.5,.1), S=M(0xaeb2b6,.28,.78), W=M(0xeee9df,.9), D=M(0x202020,.7), G=M(0xcfefff,.04,0,true,.08);
 
-// 前方保持開放，讓獎品掉下去像實機出貨
+// 實機比例：高櫃、大玻璃、厚底座、前方操作台
+box(6.6,.56,4.85,Y,0,6.36,0,false);
+box(6.6,.72,4.85,Y2,0,-.18,0,false);
+[[-3.13,3.04,-2.18],[3.13,3.04,-2.18],[-3.13,3.04,2.18],[3.13,3.04,2.18]].forEach(p=>box(.24,6.1,.24,Y,...p,false));
 
-// 洞口黃色框
-box(holeW+.22,.10,.12,Y,holeX,.43,holeZ-holeD/2-.04);
-box(holeW+.22,.10,.12,Y,holeX,.43,holeZ+holeD/2+.04);
-box(.12,.10,holeD,Y,holeX-holeW/2-.06,.43,holeZ);
-box(.12,.10,holeD,Y,holeX+holeW/2+.06,.43,holeZ);
+// 實際平台切割，左前角留下洞口
+staticBox(5.86,.2,1.9,0,.42,-.98,W);
+staticBox(2.58,.2,1.85,1.62,.42,.94,W);
+staticBox(1.40,.2,1.85,-2.20,.42,.94,W);
+staticBox(1.48,.2,.52,-1.34,.42,1.62,W);
 
-const prizes=[];for(let i=0;i<24;i++){let sx=.65,sy=.9,sz=.32,m=box(sx,sy,sz,M([0xf4dddd,0xdde8f7,0xf7ecd2,0xe7ddf7,0xdff1df][i%5]),-2.2+Math.random()*4.4,.7+Math.random()*1.6,-1.3+Math.random()*2.3);let b=new CANNON.Body({mass:.8,shape:new CANNON.Box(new CANNON.Vec3(sx/2,sy/2,sz/2))});b.position.copy(m.position);b.quaternion.setFromEuler((Math.random()-.5)*.4,Math.random()*2,(Math.random()-.5)*.4);world.addBody(b);prizes.push({m,b,on:true})}
-const carriageRig=new THREE.Group();scene.add(carriageRig);carriageRig.position.set(0,5,-.1);
+// 玻璃
+box(6.05,5.5,.025,G,0,3.02,2.2,false);
+box(.025,5.5,4.22,G,-3.02,3.02,0,false);
+box(.025,5.5,4.22,G,3.02,3.02,0,false);
 
-// 台灣一般選物販賣機常見天車：方形滑車＋黑色捲線盒
-let car=new THREE.Mesh(new THREE.BoxGeometry(.78,.28,.72),Y);car.castShadow=true;carriageRig.add(car);
-let motorBox=new THREE.Mesh(new THREE.BoxGeometry(.44,.28,.42),D);motorBox.position.y=-.24;motorBox.castShadow=true;carriageRig.add(motorBox);
+// 上方天車軌道
+box(6.0,.14,.16,S,0,5.34,-.92,false);
+box(.16,.14,3.45,S,0,5.28,-.12,false);
 
-// 吊線：比舊版細、長，甩爪時更像實機
-const swingPivot=new THREE.Group();swingPivot.position.set(0,-.31,0);carriageRig.add(swingPivot);
-let cable=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,1.22,10),D);cable.position.y=-.61;swingPivot.add(cable);
+// 原創燈箱
+const signCanvas=document.createElement('canvas');signCanvas.width=1200;signCanvas.height=340;const sx=signCanvas.getContext('2d');
+sx.fillStyle='#f0bd08';sx.fillRect(0,0,1200,340);sx.fillStyle='#fff7d7';sx.fillRect(30,28,1140,284);
+sx.fillStyle='#e4523f';sx.font='bold 92px sans-serif';sx.textAlign='center';sx.fillText('LUCKY PRIZE',600,130);
+sx.fillStyle='#3178bd';sx.font='bold 54px sans-serif';sx.fillText('CLAW MACHINE',600,210);
+sx.fillStyle='#6a5736';sx.font='bold 28px sans-serif';sx.fillText('TAIWAN ARCADE STYLE',600,270);
+const marquee=new THREE.Mesh(new THREE.PlaneGeometry(5.85,1.65),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(signCanvas)}));
+marquee.position.set(0,6.2,2.4);scene.add(marquee);
 
-// 爪頭：圓柱電磁盒＋下方旋轉盤
-let clawHead=new THREE.Mesh(new THREE.CylinderGeometry(.19,.22,.30,20),S);
-clawHead.position.y=-1.28;clawHead.castShadow=true;swingPivot.add(clawHead);
-let collar=new THREE.Mesh(new THREE.CylinderGeometry(.24,.24,.09,20),D);
-collar.position.y=-1.46;swingPivot.add(collar);
+// 前方控制台 + 投幣器 + 取物口
+box(6.0,.62,1.08,Y,0,.12,2.26,false);
+box(1.7,.56,.06,D,-1.55,.10,2.82,false);
+box(.46,.65,.07,D,1.56,.12,2.82,false);
+box(.14,.34,.08,S,1.56,.16,2.86,false);
+const joyStem=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,.45,12),S);joyStem.position.set(-.72,.80,2.20);scene.add(joyStem);
+const joyBall=new THREE.Mesh(new THREE.SphereGeometry(.14,16,12),M(0xd82929,.4));joyBall.position.set(-.72,1.03,2.20);scene.add(joyBall);
+const redBtn=new THREE.Mesh(new THREE.CylinderGeometry(.16,.16,.09,20),M(0xe53535,.4));redBtn.position.set(.35,.68,2.20);scene.add(redBtn);
 
-// 台灣機常見三爪：細長金屬爪臂、外張弧度較大、末端向內勾
+// 真洞口與下凹取物井
+const holeX=-1.73,holeZ=1.00,holeW=1.52,holeD=1.16;
+box(holeW,.05,holeD,D,holeX,-.58,holeZ,false);
+staticBox(.11,.92,holeD,holeX-holeW/2,.00,holeZ,D);
+staticBox(.11,.92,holeD,holeX+holeW/2,.00,holeZ,D);
+staticBox(holeW,.92,.11,holeX,.00,holeZ-holeD/2,D);
+box(holeW+.22,.10,.10,Y,holeX,.53,holeZ-holeD/2-.04,false);
+box(holeW+.22,.10,.10,Y,holeX,.53,holeZ+holeD/2+.04,false);
+box(.10,.10,holeD,Y,holeX-holeW/2-.05,.53,holeZ,false);
+box(.10,.10,holeD,Y,holeX+holeW/2+.05,.53,holeZ,false);
+
+// 公仔盒
+const prizes=[];
+const colors=[['#f8e8e8','#d74d4d'],['#e8f0ff','#4f7fd3'],['#fff0d5','#d5a02f'],['#eee8ff','#7658b5'],['#e8f6e7','#5a9f61'],['#e7f4f4','#4f999f']];
+function prizeTexture(i){
+  const [bg,ac]=colors[i%colors.length];
+  const cv=document.createElement('canvas');cv.width=256;cv.height=384;const c=cv.getContext('2d');
+  c.fillStyle=bg;c.fillRect(0,0,256,384);c.fillStyle='#222';c.font='bold 24px sans-serif';c.fillText('FIGURE',18,38);
+  c.fillStyle=ac;c.fillRect(22,72,212,230);c.fillStyle='#fff';c.font='bold 58px sans-serif';c.textAlign='center';c.fillText(String((i%12)+1).padStart(2,'0'),128,215);
+  c.fillStyle='#222';c.font='bold 16px sans-serif';c.fillText('PRIZE BOX',128,346);
+  return new THREE.CanvasTexture(cv)
+}
+function clearPrizes(){for(const o of prizes){scene.remove(o.mesh);world.removeBody(o.body)}prizes.length=0}
+function spawnPrizes(){
+  clearPrizes();
+  const sc=settings.boxScale/100;
+  for(let i=0;i<settings.boxCount;i++){
+    const w=.64*sc,h=.88*sc,d=.31*sc;
+    const mesh=box(w,h,d,new THREE.MeshStandardMaterial({map:prizeTexture(i),roughness:.58}),-2.2+Math.random()*4.4,.72+Math.random()*1.55,-1.3+Math.random()*2.25);
+    const body=new CANNON.Body({mass:settings.boxMass/100,shape:new CANNON.Box(new CANNON.Vec3(w/2,h/2,d/2))});
+    body.position.copy(mesh.position);body.quaternion.setFromEuler((Math.random()-.5)*.42,Math.random()*2.2,(Math.random()-.5)*.42);
+    body.linearDamping=.08;body.angularDamping=.18;world.addBody(body);prizes.push({mesh,body,alive:true})
+  }
+}
+spawnPrizes();
+
+// 實機三爪 + 可甩爪
+const carriageRig=new THREE.Group();scene.add(carriageRig);carriageRig.position.set(0,5.08,-.1);
+const carriage=new THREE.Mesh(new THREE.BoxGeometry(.78,.30,.72),Y);carriage.castShadow=true;carriageRig.add(carriage);
+const motor=new THREE.Mesh(new THREE.BoxGeometry(.46,.28,.42),D);motor.position.y=-.25;carriageRig.add(motor);
+
+const swingPivot=new THREE.Group();swingPivot.position.set(0,-.33,0);carriageRig.add(swingPivot);
+const cable=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,1.20,10),D);cable.position.y=-.60;swingPivot.add(cable);
+const head=new THREE.Mesh(new THREE.CylinderGeometry(.19,.22,.30,20),S);head.position.y=-1.28;swingPivot.add(head);
+const collar=new THREE.Mesh(new THREE.CylinderGeometry(.24,.24,.09,20),D);collar.position.y=-1.47;swingPivot.add(collar);
+
 const claws=[];
 [0,Math.PI*2/3,Math.PI*4/3].forEach(a=>{
-  const g=new THREE.Group();
-  g.position.y=-1.48;
-  g.rotation.y=a;
-
-  // 上段連桿
-  const upper=new THREE.Mesh(new THREE.BoxGeometry(.055,.48,.055),S);
-  upper.position.set(.16,-.20,0);
-  upper.rotation.z=-.55;
-  upper.castShadow=true;
-  g.add(upper);
-
-  // 中段長爪
-  const lower=new THREE.Mesh(new THREE.BoxGeometry(.055,.56,.06),S);
-  lower.position.set(.38,-.58,0);
-  lower.rotation.z=-.27;
-  lower.castShadow=true;
-  g.add(lower);
-
-  // 末端爪鉤，向內彎，方便勾盒角
-  const hook=new THREE.Mesh(new THREE.BoxGeometry(.065,.25,.085),S);
-  hook.position.set(.43,-.96,0);
-  hook.rotation.z=.48;
-  hook.castShadow=true;
-  g.add(hook);
-
-  // 爪尖橡膠套
-  const rubber=new THREE.Mesh(new THREE.BoxGeometry(.075,.11,.10),D);
-  rubber.position.set(.37,-1.10,0);
-  rubber.rotation.z=.48;
-  g.add(rubber);
-
-  swingPivot.add(g);
-  claws.push(g);
+  const g=new THREE.Group();g.position.y=-1.49;g.rotation.y=a;
+  const upper=new THREE.Mesh(new THREE.BoxGeometry(.055,.46,.055),S);upper.position.set(.16,-.19,0);upper.rotation.z=-.57;g.add(upper);
+  const lower=new THREE.Mesh(new THREE.BoxGeometry(.055,.56,.06),S);lower.position.set(.38,-.57,0);lower.rotation.z=-.28;g.add(lower);
+  const hook=new THREE.Mesh(new THREE.BoxGeometry(.065,.25,.085),S);hook.position.set(.43,-.95,0);hook.rotation.z=.50;g.add(hook);
+  const rubber=new THREE.Mesh(new THREE.BoxGeometry(.075,.11,.10),D);rubber.position.set(.37,-1.09,0);rubber.rotation.z=.50;g.add(rubber);
+  swingPivot.add(g);claws.push(g)
 });
+const clawOpen=-.05,clawClosed=.43;
 
-// 爪子開合角度。張開時像實機大開口，收爪時三爪往中心夾。
-const clawOpenAngle=-0.05;
-const clawClosedAngle=0.43;
-let x=0,z=-.1,y=5,ty=5,busy=false,closed=false,held=null,coins=30,score=0,jx=0,jy=0;
+let x=0,z=-.1,y=5.08,targetY=5.08,busy=false,closed=false,held=null;
+let coins=30,score=0,playCount=0;
+let jx=0,jy=0,prevX=x,prevZ=z,velX=0,velZ=0,prevVelX=0,prevVelZ=0;
+let swingX=0,swingZ=0,swingVX=0,swingVZ=0;
+let swingImpulse=settings.swingPower/100*.75;
+const spring=13.5,damping=3.2,maxSwing=.42;
 
-// 甩爪物理：天車加速度會讓吊爪產生反向慣性，之後像鐘擺一樣衰減。
-let prevX=x, prevZ=z, velX=0, velZ=0, prevVelX=0, prevVelZ=0;
-let swingX=0, swingZ=0, swingVX=0, swingVZ=0;
-const swingSpring=13.5;      // 回正速度
-const swingDamping=3.15;    // 阻尼
-let swingImpulse=settings.swingPower/100*.74;    // 天車加速度對甩爪的影響
-const maxSwing=0.42;        // 最大傾角（弧度，約24度）
-
-const sleep=n=>new Promise(r=>setTimeout(r,n)),wait=(f,n)=>new Promise(r=>{let s=performance.now();(function q(){if(f()||performance.now()-s>n)r();else requestAnimationFrame(q)})()});
-function clawWorldPoint(){
-  const p=new THREE.Vector3(0,-2.57,0);
-  swingPivot.localToWorld(p);
-  return p;
+const sleep=n=>new Promise(r=>setTimeout(r,n));
+function wait(f,n){return new Promise(r=>{const s=performance.now();(function q(){if(f()||performance.now()-s>n)r();else requestAnimationFrame(q)})()})}
+function clawPoint(){
+  const p=new THREE.Vector3(0,-2.56,0);
+  swingPivot.localToWorld(p);return p
 }
-function near(){
-  const cp=clawWorldPoint();
-  let a=null,d=99;
+function nearestPrize(){
+  const cp=clawPoint();let best=null,bd=99;
   for(const o of prizes){
-    if(!o.on)continue;
-    let n=Math.hypot(o.b.position.x-cp.x,o.b.position.z-cp.z,(o.b.position.y-cp.y)*.7);
-    if(n<d){d=n;a=o}
+    if(!o.alive)continue;
+    const d=Math.hypot(o.body.position.x-cp.x,o.body.position.z-cp.z,(o.body.position.y-cp.y)*.68);
+    if(d<bd){bd=d;best=o}
   }
-  return d<.84?a:null
+  return bd<.84?best:null
 }
+
 $('#drop').onclick=async()=>{
-  if(busy||coins<1)return;
-  busy=true;playCount++;$('#coins').textContent=--coins;$('#msg').textContent='下爪…';
-  ty=3.18;await wait(()=>Math.abs(y-ty)<.04,1800);
-  closed=true;await sleep(300);
-  let p=near();
-  const guaranteed=(playCount%settings.guaranteeEvery===0);
+  if(busy||coins<=0)return;
+  busy=true;$('#drop').disabled=true;coins--;playCount++;$('#coins').textContent=coins;
+  const gEvery=settings.guaranteeEvery;
+  $('#guarantee').textContent=gEvery-(playCount%gEvery||gEvery);
+  $('#msg').textContent='下爪…';targetY=3.18;
+  await wait(()=>Math.abs(y-targetY)<.04,1800);
+  closed=true;$('#msg').textContent='收爪';await sleep(320);
+
+  const p=nearestPrize();
+  const guaranteed=(playCount%gEvery===0);
   const force=(guaranteed?settings.strongPower:settings.weakPower)/100;
-  if(p&&Math.random()<(.18+force*.72)){
-    held=p;p.b.type=CANNON.Body.KINEMATIC;p.b.velocity.set(0,0,0);p.b.angularVelocity.set(0,0,0)
-  }
-  ty=5;$('#msg').textContent=held?(guaranteed?'保夾強爪！':'夾起來了！'):'沒夾到…';
-  await wait(()=>Math.abs(y-ty)<.04,1900);
+  if(p&&Math.random()<(.18+force*.72)){held=p;p.body.type=CANNON.Body.KINEMATIC;p.body.velocity.set(0,0,0);p.body.angularVelocity.set(0,0,0)}
+
+  targetY=5.08;$('#msg').textContent=held?(guaranteed?'保夾強爪！':'夾起來了！'):'沒夾到…';
+  await wait(()=>Math.abs(y-targetY)<.04,1900);
+
   closed=false;
   if(held){
-    const o=held;o.b.type=CANNON.Body.DYNAMIC;o.b.wakeUp();
-    const slip=guaranteed?false:(Math.random()<settings.slipChance/100);
-    if(slip){o.b.applyImpulse(new CANNON.Vec3((Math.random()-.5)*.5,0,(Math.random()-.5)*.5));$('#msg').textContent='滑爪！'}
+    const o=held;o.body.type=CANNON.Body.DYNAMIC;o.body.wakeUp();
+    if(!guaranteed&&Math.random()<settings.slipChance/100){o.body.applyImpulse(new CANNON.Vec3((Math.random()-.5)*.5,0,(Math.random()-.5)*.5));$('#msg').textContent='滑爪！'}
     else $('#msg').textContent='放爪';
     held=null
   }
-  await sleep(350);busy=false
+  await sleep(380);busy=false;$('#drop').disabled=false
 };
-let joy=$('#joy'),knob=$('#knob'),active=false;function jm(e){let r=joy.getBoundingClientRect(),dx=e.clientX-r.left-70,dy=e.clientY-r.top-70,L=Math.hypot(dx,dy)||1;if(L>42){dx*=42/L;dy*=42/L}jx=dx/42;jy=dy/42;knob.style.transform=`translate(${dx}px,${dy}px)`}joy.onpointerdown=e=>{active=true;joy.setPointerCapture(e.pointerId);jm(e)};joy.onpointermove=e=>{if(active)jm(e)};joy.onpointerup=()=>{active=false;jx=jy=0;knob.style.transform=''};
 
-const adminIds=['weakPower','strongPower','guaranteeEvery','slipChance','boxMass','friction','boxCount','boxScale','swingPower'];
-function syncAdmin(){
-  adminIds.forEach(id=>{const el=$('#'+id),v=$('#'+id+'V');el.value=settings[id];if(v)v.textContent=settings[id]})
+// 搖桿
+const joy=$('#joy'),knob=$('#knob');let active=false;
+function setJoy(e){
+  const r=joy.getBoundingClientRect();let dx=e.clientX-r.left-r.width/2,dy=e.clientY-r.top-r.height/2,L=Math.hypot(dx,dy)||1;
+  if(L>43){dx*=43/L;dy*=43/L}jx=dx/43;jy=dy/43;knob.style.transform=`translate(${dx}px,${dy}px)`
 }
-syncAdmin();
-adminIds.forEach(id=>$('#'+id).oninput=e=>{const v=$('#'+id+'V');if(v)v.textContent=e.target.value});
-$('#adminBtn').onclick=()=>{$('#adminPanel').classList.add('show');syncAdmin()};
+joy.onpointerdown=e=>{active=true;joy.setPointerCapture(e.pointerId);setJoy(e)};
+joy.onpointermove=e=>{if(active)setJoy(e)};
+joy.onpointerup=joy.onpointercancel=()=>{active=false;jx=jy=0;knob.style.transform=''};
+
+// 後台
+const ids=['weakPower','strongPower','guaranteeEvery','slipChance','boxMass','friction','boxCount','boxScale','swingPower'];
+function syncAdmin(){ids.forEach(id=>{const el=$('#'+id),v=$('#'+id+'V');el.value=settings[id];v.textContent=settings[id]})}
+ids.forEach(id=>$('#'+id).oninput=e=>$('#'+id+'V').textContent=e.target.value);
+$('#adminBtn').onclick=()=>{syncAdmin();$('#adminPanel').classList.add('show')};
 $('#closeAdmin').onclick=()=>$('#adminPanel').classList.remove('show');
 $('#saveAdmin').onclick=()=>{
-  adminIds.forEach(id=>settings[id]=Number($('#'+id).value));
-  localStorage.setItem('twClawAdmin',JSON.stringify(settings));
+  ids.forEach(id=>settings[id]=Number($('#'+id).value));
+  localStorage.setItem('twClawV2',JSON.stringify(settings));
   world.defaultContactMaterial.friction=settings.friction/100;
-  swingImpulse=settings.swingPower/100*.74;
-  $('#adminPanel').classList.remove('show');
-  $('#msg').textContent='後台設定已儲存'
+  swingImpulse=settings.swingPower/100*.75;
+  $('#adminPanel').classList.remove('show');$('#msg').textContent='後台設定已儲存'
 };
-$('#respawn').onclick=()=>{
-  adminIds.forEach(id=>settings[id]=Number($('#'+id).value));
-  spawnPrizes();$('#msg').textContent='公仔盒已重新擺放'
-};
-$('#resetAll').onclick=()=>{
-  settings=Object.assign({},defaults);localStorage.removeItem('twClawAdmin');syncAdmin();
-  world.defaultContactMaterial.friction=settings.friction/100;swingImpulse=settings.swingPower/100*.74;spawnPrizes();
-  $('#msg').textContent='已恢復預設'
-};
+$('#respawn').onclick=()=>{ids.forEach(id=>settings[id]=Number($('#'+id).value));spawnPrizes();$('#msg').textContent='公仔盒已重新擺放'};
+$('#resetAdmin').onclick=()=>{settings=Object.assign({},defaults);localStorage.removeItem('twClawV2');syncAdmin();world.defaultContactMaterial.friction=settings.friction/100;swingImpulse=settings.swingPower/100*.75;spawnPrizes()};
+$('#viewBtn').onclick=()=>{viewMode=(viewMode+1)%2;setView()};
 
-let clock=new THREE.Clock();
-function anim(){
-  requestAnimationFrame(anim);
-  let dt=Math.min(clock.getDelta(),1/30);
+const clock=new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),1/30);
 
-  // 天車只有非下爪階段能移動。
   if(!busy){
-    x=Math.max(-2.3,Math.min(2.3,x+jx*dt*2.3));
-    z=Math.max(-1.4,Math.min(1.3,z+jy*dt*2.0));
+    x=Math.max(-2.35,Math.min(2.35,x+jx*dt*2.35));
+    z=Math.max(-1.42,Math.min(1.35,z+jy*dt*2.05))
   }
 
-  // 由天車速度變化計算加速度，快速反打方向就會產生明顯甩爪。
-  velX=(x-prevX)/Math.max(dt,.001);
-  velZ=(z-prevZ)/Math.max(dt,.001);
-  const accX=(velX-prevVelX)/Math.max(dt,.001);
-  const accZ=(velZ-prevVelZ)/Math.max(dt,.001);
-  swingVX += (-accZ*swingImpulse - swingSpring*swingX - swingDamping*swingVX)*dt;
-  swingVZ += ( accX*swingImpulse - swingSpring*swingZ - swingDamping*swingVZ)*dt;
-  swingX += swingVX*dt;
-  swingZ += swingVZ*dt;
-  swingX=Math.max(-maxSwing,Math.min(maxSwing,swingX));
-  swingZ=Math.max(-maxSwing,Math.min(maxSwing,swingZ));
-
+  velX=(x-prevX)/Math.max(dt,.001);velZ=(z-prevZ)/Math.max(dt,.001);
+  const accX=(velX-prevVelX)/Math.max(dt,.001),accZ=(velZ-prevVelZ)/Math.max(dt,.001);
+  swingVX+=(-accZ*swingImpulse-spring*swingX-damping*swingVX)*dt;
+  swingVZ+=( accX*swingImpulse-spring*swingZ-damping*swingVZ)*dt;
+  swingX=Math.max(-maxSwing,Math.min(maxSwing,swingX+swingVX*dt));
+  swingZ=Math.max(-maxSwing,Math.min(maxSwing,swingZ+swingVZ*dt));
   prevX=x;prevZ=z;prevVelX=velX;prevVelZ=velZ;
 
-  y+=(ty-y)*Math.min(1,dt*4.5);
+  y+=(targetY-y)*Math.min(1,dt*4.6);
   carriageRig.position.set(x,y,z);
-  swingPivot.rotation.x=swingX;
-  swingPivot.rotation.z=swingZ;
-  claws.forEach(g=>g.rotation.z=closed?clawClosedAngle:clawOpenAngle);
+  swingPivot.rotation.x=swingX;swingPivot.rotation.z=swingZ;
+  claws.forEach(g=>g.rotation.z=closed?clawClosed:clawOpen);
 
   if(held){
-    const cp=clawWorldPoint();
-    held.b.position.set(cp.x,cp.y,cp.z);
-    held.b.quaternion.set(0,0,0,1)
+    const cp=clawPoint();held.body.position.set(cp.x,cp.y,cp.z);held.body.quaternion.set(0,0,0,1)
   }
 
   world.step(1/60,dt,4);
+
   for(const o of prizes){
-    if(!o.on)continue;
-    o.m.position.copy(o.b.position);o.m.quaternion.copy(o.b.quaternion);
-    let p=o.b.position;
-    if(p.x>holeX-holeW/2 && p.x<holeX+holeW/2 && p.z>holeZ-holeD/2 && p.z<holeZ+holeD/2 && p.y<.05){
-      o.on=false;scene.remove(o.m);world.removeBody(o.b);
-      $('#score').textContent=++score;$('#msg').textContent='出貨成功！'
+    if(!o.alive)continue;
+    o.mesh.position.copy(o.body.position);o.mesh.quaternion.copy(o.body.quaternion);
+    const p=o.body.position;
+    if(p.x>holeX-holeW/2&&p.x<holeX+holeW/2&&p.z>holeZ-holeD/2&&p.z<holeZ+holeD/2&&p.y<.05){
+      o.alive=false;scene.remove(o.mesh);world.removeBody(o.body);score++;$('#score').textContent=score;$('#msg').textContent='出貨成功！'
     }
   }
+
   renderer.render(scene,camera)
 }
-anim();
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
-</script><script>
+animate();
+
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script>
+
+<script>
 window.addEventListener('error',e=>{
- const d=document.createElement('div');
- d.style='position:fixed;z-index:9999;left:10px;right:10px;bottom:10px;background:#8b0000;color:white;padding:10px;border-radius:8px;font:12px sans-serif';
- d.textContent='載入錯誤：'+(e.message||'請確認網路連線後重新整理');
- document.body.appendChild(d);
+ const d=document.querySelector('#error');d.style.display='block';d.textContent='載入錯誤：'+(e.message||'請重新整理頁面');
 });
-</script></body></html>
+</script>
+</body>
+</html>
