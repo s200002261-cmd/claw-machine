@@ -37,7 +37,7 @@ canvas{display:block;width:100%;height:100%}
 <body>
 <div id="app"></div>
 <div id="hud">代幣 <span id="coins">30</span><br>出貨 <span id="score">0</span><br>保夾倒數 <span id="guarantee">10</span></div>
-<div id="msg">快速反打搖桿可以甩爪</div>
+<div id="msg">開爪正常・下爪後向內收爪</div>
 <button id="adminBtn">後台</button>
 <button id="viewBtn">視角</button>
 <div id="joy"><div id="knob"></div></div>
@@ -210,7 +210,8 @@ const claws=[];
   const rubber=new THREE.Mesh(new THREE.BoxGeometry(.075,.11,.10),D);rubber.position.set(.37,-1.09,0);rubber.rotation.z=.50;g.add(rubber);
   swingPivot.add(g);claws.push(g)
 });
-const clawOpen=-.05,clawClosed=.43;
+const clawOpen=.43,clawClosed=-.05;
+claws.forEach(g=>g.rotation.z=clawOpen);
 
 let x=0,z=-.1,y=5.08,targetY=5.08,busy=false,closed=false,held=null;
 let coins=30,score=0,playCount=0;
@@ -222,7 +223,7 @@ const spring=13.5,damping=3.2,maxSwing=.42;
 const sleep=n=>new Promise(r=>setTimeout(r,n));
 function wait(f,n){return new Promise(r=>{const s=performance.now();(function q(){if(f()||performance.now()-s>n)r();else requestAnimationFrame(q)})()})}
 function clawPoint(){
-  const p=new THREE.Vector3(0,-2.56,0);
+  const p=new THREE.Vector3(0,-2.48,0);
   swingPivot.localToWorld(p);return p
 }
 function nearestPrize(){
@@ -232,7 +233,7 @@ function nearestPrize(){
     const d=Math.hypot(o.body.position.x-cp.x,o.body.position.z-cp.z,(o.body.position.y-cp.y)*.68);
     if(d<bd){bd=d;best=o}
   }
-  return bd<.84?best:null
+  return bd<.96?best:null
 }
 
 $('#drop').onclick=async()=>{
@@ -240,14 +241,14 @@ $('#drop').onclick=async()=>{
   busy=true;$('#drop').disabled=true;coins--;playCount++;$('#coins').textContent=coins;
   const gEvery=settings.guaranteeEvery;
   $('#guarantee').textContent=gEvery-(playCount%gEvery||gEvery);
-  $('#msg').textContent='下爪…';targetY=3.18;
+  $('#msg').textContent='下爪…';targetY=3.05;
   await wait(()=>Math.abs(y-targetY)<.04,1800);
   closed=true;$('#msg').textContent='收爪';await sleep(320);
 
   const p=nearestPrize();
   const guaranteed=(playCount%gEvery===0);
   const force=(guaranteed?settings.strongPower:settings.weakPower)/100;
-  if(p&&Math.random()<(.18+force*.72)){held=p;p.body.type=CANNON.Body.KINEMATIC;p.body.velocity.set(0,0,0);p.body.angularVelocity.set(0,0,0)}
+  if(p&&Math.random()<(.35+force*.60)){held=p;p.body.type=CANNON.Body.KINEMATIC;p.body.velocity.set(0,0,0);p.body.angularVelocity.set(0,0,0)}
 
   targetY=5.08;$('#msg').textContent=held?(guaranteed?'保夾強爪！':'夾起來了！'):'沒夾到…';
   await wait(()=>Math.abs(y-targetY)<.04,1900);
@@ -310,7 +311,10 @@ function animate(){
   y+=(targetY-y)*Math.min(1,dt*4.6);
   carriageRig.position.set(x,y,z);
   swingPivot.rotation.x=swingX;swingPivot.rotation.z=swingZ;
-  claws.forEach(g=>g.rotation.z=closed?clawClosed:clawOpen);
+  claws.forEach(g=>{
+    const target=closed?clawClosed:clawOpen;
+    g.rotation.z += (target-g.rotation.z)*Math.min(1,dt*9);
+  });
 
   if(held){
     const cp=clawPoint();held.body.position.set(cp.x,cp.y,cp.z);held.body.quaternion.set(0,0,0,1)
