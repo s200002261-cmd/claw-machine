@@ -2,78 +2,207 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Claw Machine 3D V1</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#d6a700">
+<title>台灣選物販賣機 II 代</title>
 <style>
-html,body{margin:0;height:100%;overflow:hidden;background:#111;font-family:-apple-system,sans-serif;touch-action:none}
-#app{position:fixed;inset:0}canvas{display:block}
-.top{position:fixed;z-index:10;left:0;right:0;top:0;padding:12px;color:white;display:flex;gap:8px;align-items:center}
-.title{flex:1;text-shadow:0 2px 6px #000}.title b{display:block;font-size:18px}.title small{opacity:.8}
-.pill{background:#eef5f8e8;color:#284a5c;padding:8px 10px;border-radius:16px;font-weight:800;font-size:12px}
-#msg{position:fixed;z-index:11;top:68px;left:50%;transform:translateX(-50%);background:#111c;color:#fff;padding:8px 14px;border-radius:12px;font-weight:800;font-size:13px;white-space:nowrap}
-#joy{position:fixed;z-index:12;left:24px;bottom:28px;width:140px;height:140px;border-radius:50%;background:#ffffff24;border:1px solid #ffffff66}
-#knob{position:absolute;left:42px;top:42px;width:56px;height:56px;border-radius:50%;background:white;box-shadow:0 5px 15px #0006}
-#grab{position:fixed;z-index:12;right:24px;bottom:38px;width:110px;height:110px;border-radius:50%;border:8px solid #ff8b8b;background:#ed4040;color:#fff;font-size:22px;font-weight:900}
-#powerWrap{position:fixed;z-index:12;right:16px;bottom:158px;color:#fff;font-size:11px;text-shadow:0 1px 4px #000}
-#power{width:120px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#191919;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;touch-action:none}
+#app{position:fixed;inset:0}
+canvas{display:block;width:100%;height:100%}
+.hud{position:fixed;z-index:20;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 12px) 14px 8px;display:flex;align-items:flex-start;pointer-events:none}
+.stats{background:#111d;color:#fff;border-radius:10px;padding:10px 14px;line-height:1.55;font-weight:800;font-size:14px;box-shadow:0 4px 16px #0005}
+.actions{margin-left:auto;display:flex;flex-direction:column;gap:8px}.chip{background:#111d;color:#fff;border-radius:10px;padding:9px 11px;font-size:12px;text-align:center}
+#msg{position:fixed;top:calc(env(safe-area-inset-top) + 90px);left:50%;transform:translateX(-50%);z-index:21;background:#111c;color:#fff;padding:8px 14px;border-radius:12px;font-weight:800;white-space:nowrap;font-size:13px}
+.controls{position:fixed;z-index:30;left:0;right:0;bottom:0;height:235px;pointer-events:none}
+#joy{position:absolute;left:20px;bottom:calc(env(safe-area-inset-bottom) + 20px);width:142px;height:142px;border-radius:50%;background:#ffffff26;border:1px solid #ffffff55;box-shadow:inset 0 0 26px #fff2;pointer-events:auto;backdrop-filter:blur(6px)}
+#knob{position:absolute;left:43px;top:43px;width:56px;height:56px;border-radius:50%;background:#f5f5f5;box-shadow:0 6px 16px #0006}
+#grab{position:absolute;right:24px;bottom:calc(env(safe-area-inset-bottom) + 34px);width:114px;height:114px;border-radius:50%;border:9px solid #ff9d9d;background:#ed4c4c;color:#fff;font-weight:900;font-size:22px;box-shadow:0 8px 16px #0007;pointer-events:auto}
+#powerWrap{position:absolute;right:18px;bottom:calc(env(safe-area-inset-bottom) + 165px);color:#fff;text-shadow:0 1px 4px #000;font-size:11px;pointer-events:auto}
+#power{width:125px}
+.tip{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 6px);transform:translateX(-50%);z-index:31;color:#fff9;font-size:11px;pointer-events:none}
 </style>
 </head>
 <body>
 <div id="app"></div>
-<div class="top"><div class="title"><b>娃娃機店・3D 模擬台</b><small>Three.js + 物理碰撞</small></div><div class="pill" id="coin">代幣 30</div><div class="pill" id="score">出貨 0</div></div>
+<div class="hud">
+  <div class="stats">
+    投幣次數 <span id="coins">30</span><br>
+    出貨數 <span id="score">0</span><br>
+    目標 <span id="target">1</span>
+  </div>
+  <div class="actions">
+    <div class="chip">⚙ 設定</div>
+    <div class="chip">📷 視角</div>
+  </div>
+</div>
 <div id="msg">拖左下搖桿移動天車</div>
-<div id="joy"><div id="knob"></div></div>
-<div id="powerWrap">爪力 <input id="power" type="range" min="35" max="100" value="68"></div>
-<button id="grab">抓取</button>
+<div class="controls">
+  <div id="joy"><div id="knob"></div></div>
+  <div id="powerWrap">爪力 <input id="power" type="range" min="35" max="100" value="72"></div>
+  <button id="grab">夾取</button>
+</div>
+<div class="tip">台灣選物販賣機 II 代風格・公仔盒測試台</div>
 
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js';
 import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
 
-const app=document.querySelector('#app'),msg=document.querySelector('#msg'),coinEl=document.querySelector('#coin'),scoreEl=document.querySelector('#score'),grab=document.querySelector('#grab'),power=document.querySelector('#power');
-const scene=new THREE.Scene();scene.background=new THREE.Color(0x8ba4a8);
-const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,.1,100);camera.position.set(0,6.2,10.5);camera.lookAt(0,2.5,0);
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;app.appendChild(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xffffff,0x33444a,2));
-const dl=new THREE.DirectionalLight(0xffffff,2);dl.position.set(4,8,5);dl.castShadow=true;scene.add(dl);
+const app=document.querySelector('#app');
+const msg=document.querySelector('#msg');
+const coinEl=document.querySelector('#coins');
+const scoreEl=document.querySelector('#score');
+const grabBtn=document.querySelector('#grab');
+const power=document.querySelector('#power');
 
-const world=new CANNON.World({gravity:new CANNON.Vec3(0,-9.82,0)});world.solver.iterations=12;
-function sm(c,t=false,o=1){return new THREE.MeshStandardMaterial({color:c,roughness:.55,metalness:.1,transparent:t,opacity:o})}
-function box(w,h,d,m,x,y,z){const q=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);q.position.set(x,y,z);q.castShadow=q.receiveShadow=true;scene.add(q);return q}
-function staticBox(w,h,d,x,y,z,vis=true,m=sm(0xe7e1d4)){if(vis)box(w,h,d,m,x,y,z);const b=new CANNON.Body({mass:0,shape:new CANNON.Box(new CANNON.Vec3(w/2,h/2,d/2)),position:new CANNON.Vec3(x,y,z)});world.addBody(b)}
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x1f1f1f);
 
-staticBox(5.8,.18,4,0,.08,0,true,sm(0xe7dfcf));
-const frame=sm(0xe9e3d8);[[-3,2.6,-2,.16,5.2,.16],[3,2.6,-2,.16,5.2,.16],[-3,2.6,2,.16,5.2,.16],[3,2.6,2,.16,5.2,.16],[0,5.15,-2,6,.16,.16],[0,5.15,2,6,.16,.16]].forEach(v=>box(v[3],v[4],v[5],frame,v[0],v[1],v[2]));
-box(6,5,.03,sm(0xccefff,true,.1),0,2.6,2);
-box(5.1,.1,.12,sm(0x666666),0,4.72,-.6);
-box(1.55,.05,1.1,sm(0x20242a),-1.7,.2,1.15);
+const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,100);
+camera.position.set(0,5.8,9.7);
+camera.lookAt(0,2.35,0);
 
-const prizes=[];const cols=[0xf2f2f2,0xb8d2ec,0xf4c8da,0xc7e2c5,0xf2d8a7,0xd4c5ef];
-for(let i=0;i<18;i++){const sx=.42+Math.random()*.14,sy=.52+Math.random()*.22,sz=.38+Math.random()*.12;const m=box(sx,sy,sz,sm(cols[i%cols.length]),-2.2+Math.random()*4.4,.5+Math.random()*1.7,-1.45+Math.random()*2.5);const b=new CANNON.Body({mass:.5+Math.random()*.3,shape:new CANNON.Box(new CANNON.Vec3(sx/2,sy/2,sz/2))});b.position.set(m.position.x,m.position.y,m.position.z);b.quaternion.setFromEuler(Math.random()*.3,Math.random()*2,Math.random()*.3);b.angularDamping=.15;world.addBody(b);prizes.push({m,b,alive:true})}
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+app.appendChild(renderer.domElement);
 
-const rig=new THREE.Group();scene.add(rig);rig.position.set(0,4.5,-.1);
-const car=new THREE.Mesh(new THREE.BoxGeometry(.58,.22,.55),sm(0x55585c));rig.add(car);
-const cable=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,1.2,10),sm(0x3b3b3b));cable.position.y=-.7;rig.add(cable);
-const hub=new THREE.Mesh(new THREE.SphereGeometry(.18,14,10),sm(0x707478));hub.position.y=-1.32;rig.add(hub);
-const groups=[];[0,Math.PI*2/3,Math.PI*4/3].forEach(a=>{const g=new THREE.Group();g.position.y=-1.36;g.rotation.y=a;const arm=new THREE.Mesh(new THREE.BoxGeometry(.08,.8,.08),sm(0x656a6f));arm.position.set(.28,-.35,0);arm.rotation.z=-.42;g.add(arm);const tip=new THREE.Mesh(new THREE.BoxGeometry(.1,.35,.12),sm(0x555b60));tip.position.set(.48,-.75,0);tip.rotation.z=.55;g.add(tip);rig.add(g);groups.push(g)});
+scene.add(new THREE.HemisphereLight(0xffffff,0x2c2c2c,2.0));
+const key=new THREE.DirectionalLight(0xffffff,2.6);
+key.position.set(4,8,6); key.castShadow=true; key.shadow.mapSize.set(1024,1024); scene.add(key);
+const warm=new THREE.PointLight(0xffe1a0,1.8,15); warm.position.set(0,5,3); scene.add(warm);
 
-let x=0,z=-.1,y=4.5,targetY=4.5,closed=false,busy=false,coins=30,score=0,held=null;
-function nearest(){let best=null,bd=999;for(const o of prizes){if(!o.alive)continue;const d=Math.hypot(o.b.position.x-x,o.b.position.z-z,(o.b.position.y-(y-2))*.7);if(d<bd){bd=d;best=o}}return bd<.72?best:null}
-async function cycle(){if(busy||coins<=0)return;busy=true;grab.disabled=true;coinEl.textContent='代幣 '+(--coins);msg.textContent='下爪…';targetY=2.55;await wait(()=>Math.abs(y-targetY)<.04,1800);closed=true;msg.textContent='收爪';await sleep(280);const p=nearest();if(p&&Math.random()<Number(power.value)/100*.85){held=p;p.b.type=CANNON.Body.KINEMATIC;p.b.velocity.set(0,0,0)}targetY=4.5;msg.textContent=held?'夾起來了！':'沒夾到…';await wait(()=>Math.abs(y-targetY)<.04,1900);closed=false;if(held){held.b.type=CANNON.Body.DYNAMIC;held.b.wakeUp();held=null}await sleep(400);busy=false;grab.disabled=false}
-grab.onclick=cycle;
+const world=new CANNON.World({gravity:new CANNON.Vec3(0,-9.82,0)});
+world.solver.iterations=12;
+world.defaultContactMaterial.friction=.48;
+world.defaultContactMaterial.restitution=.04;
 
-const joy=document.querySelector('#joy'),knob=document.querySelector('#knob');let active=false,jx=0,jy=0;
-function joyPos(e){const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy,L=Math.hypot(dx,dy)||1;if(L>42){dx*=42/L;dy*=42/L}jx=dx/42;jy=dy/42;knob.style.transform=`translate(${dx}px,${dy}px)`}
-joy.onpointerdown=e=>{active=true;joy.setPointerCapture(e.pointerId);joyPos(e)};joy.onpointermove=e=>{if(active)joyPos(e)};joy.onpointerup=joy.onpointercancel=()=>{active=false;jx=jy=0;knob.style.transform=''};
+function mat(c,rough=.55,metal=.05,transparent=false,opacity=1){
+  return new THREE.MeshStandardMaterial({color:c,roughness:rough,metalness:metal,transparent,opacity});
+}
+function makeBox(w,h,d,m,x,y,z,cast=true){
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+  mesh.position.set(x,y,z); mesh.castShadow=cast; mesh.receiveShadow=true; scene.add(mesh); return mesh;
+}
+function staticBox(w,h,d,x,y,z,m=null,visible=True){
+  if(m) makeBox(w,h,d,m,x,y,z,false);
+  const b=new CANNON.Body({mass:0,shape:new CANNON.Box(new CANNON.Vec3(w/2,h/2,d/2)),position:new CANNON.Vec3(x,y,z)});
+  world.addBody(b); return b;
+}
 
-function sleep(ms){return new Promise(r=>setTimeout(r,ms))}function wait(test,ms){return new Promise(r=>{const s=performance.now();(function f(){if(test()||performance.now()-s>ms)r();else requestAnimationFrame(f)})()})}
+const yellow=mat(0xd9ad12,.45,.18), metal=mat(0x9da0a5,.3,.7), floorMat=mat(0xe1d8c2,.9,0);
+makeBox(6.35,.42,4.65,yellow,0,5.36,0,false);
+makeBox(6.35,.46,4.65,yellow,0,-.08,0,false);
+[[-3.05,2.65,-2.15],[3.05,2.65,-2.15],[-3.05,2.65,2.15],[3.05,2.65,2.15]].forEach(p=>makeBox(.22,5.25,.22,yellow,...p,false));
+makeBox(6.0,.18,.18,metal,0,4.95,-1.0,false);
+makeBox(.18,.16,3.45,metal,0,4.88,-.18,false);
+makeBox(5.7,.18,3.9,floorMat,0,.12,0,false);
+
+const glass=mat(0xcfeeff,.08,0,true,.09);
+makeBox(5.95,4.8,.03,glass,0,2.55,2.14,false);
+makeBox(.03,4.8,4.2,glass,-3.0,2.55,0,false);
+makeBox(.03,4.8,4.2,glass,3.0,2.55,0,false);
+
+const back=makeBox(5.15,1.3,.08,mat(0xf4efe5,.9),0,3.75,-2.08,false);
+const titleMat = new THREE.MeshBasicMaterial({color:0x6d4c2f});
+const titleCanvas=document.createElement('canvas'); titleCanvas.width=1024; titleCanvas.height=256;
+const ctx=titleCanvas.getContext('2d'); ctx.fillStyle='#f0d04f'; ctx.fillRect(0,0,1024,256); ctx.fillStyle='#7b3f20'; ctx.font='bold 92px sans-serif'; ctx.textAlign='center'; ctx.fillText('選物販賣機 II 代',512,118); ctx.font='bold 38px sans-serif'; ctx.fillText('CATCH YOUR DREAM',512,182);
+const tex=new THREE.CanvasTexture(titleCanvas); const sign=new THREE.Mesh(new THREE.PlaneGeometry(5.25,1.3),new THREE.MeshBasicMaterial({map:tex})); sign.position.set(0,5.07,2.23); scene.add(sign);
+
+const hole=makeBox(1.55,.05,1.12,mat(0x1b1b1b,.9),-1.72,.24,1.15,false);
+staticBox(1.75,.18,.16,-1.72,.17,.58,mat(0xd9ad12),true);
+
+const prizes=[];
+const colors=[0xf0f0f0,0xd9e7fa,0xf5c5d7,0xd9f0cf,0xffdfad,0xd7ccf4,0xf7d0bf];
+for(let i=0;i<20;i++){
+  const sx=.58+Math.random()*.16, sy=.78+Math.random()*.18, sz=.28+Math.random()*.10;
+  const m=makeBox(sx,sy,sz,mat(colors[i%colors.length],.58),-2.15+Math.random()*4.3,.52+Math.random()*1.55,-1.35+Math.random()*2.4);
+  const label=document.createElement('canvas'); label.width=256; label.height=384; const lc=label.getContext('2d');
+  lc.fillStyle=['#f7f7f7','#faf1e8','#eaf2ff','#fcebf1'][i%4]; lc.fillRect(0,0,256,384);
+  lc.fillStyle='#222'; lc.font='bold 26px sans-serif'; lc.fillText(['FIGURE','ANIME','COLLECT','LIMITED'][i%4],18,42);
+  lc.fillStyle=['#ee6a5f','#5a7fd8','#e4b64a','#795bb2'][i%4]; lc.fillRect(24,90,208,210);
+  lc.fillStyle='#fff'; lc.font='bold 42px sans-serif'; lc.textAlign='center'; lc.fillText(['01','02','03','04'][i%4],128,215);
+  const ltex=new THREE.CanvasTexture(label); m.material = new THREE.MeshStandardMaterial({map:ltex,roughness:.55});
+  const b=new CANNON.Body({mass:.65+Math.random()*.25,shape:new CANNON.Box(new CANNON.Vec3(sx/2,sy/2,sz/2))});
+  b.position.set(m.position.x,m.position.y,m.position.z);
+  b.quaternion.setFromEuler((Math.random()-.5)*.4,Math.random()*2.2,(Math.random()-.5)*.4);
+  b.linearDamping=.08; b.angularDamping=.16; world.addBody(b);
+  prizes.push({m,b,alive:true});
+}
+
+const rig=new THREE.Group(); scene.add(rig); rig.position.set(0,4.62,-.2);
+const carriage=new THREE.Mesh(new THREE.BoxGeometry(.72,.28,.72),yellow); rig.add(carriage);
+const rod=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,1.1,12),metal); rod.position.y=-.72; rig.add(rod);
+const hub=new THREE.Mesh(new THREE.CylinderGeometry(.16,.16,.28,16),metal); hub.rotation.x=Math.PI/2; hub.position.y=-1.35; rig.add(hub);
+
+const clawGroups=[];
+[0,Math.PI*2/3,Math.PI*4/3].forEach(a=>{
+  const g=new THREE.Group(); g.position.y=-1.43; g.rotation.y=a;
+  const arm=new THREE.Mesh(new THREE.BoxGeometry(.07,.76,.07),metal); arm.position.set(.28,-.35,0); arm.rotation.z=-.42; arm.castShadow=true; g.add(arm);
+  const tip=new THREE.Mesh(new THREE.BoxGeometry(.08,.38,.12),metal); tip.position.set(.48,-.76,0); tip.rotation.z=.56; g.add(tip);
+  rig.add(g); clawGroups.push(g);
+});
+
+let x=0,z=-.2,y=4.62,targetY=4.62,busy=false,closed=false,coins=30,score=0,held=null;
+function nearest(){
+  let best=null,bd=999;
+  for(const o of prizes){ if(!o.alive) continue;
+    const d=Math.hypot(o.b.position.x-x,o.b.position.z-z,(o.b.position.y-(y-2.05))*.7);
+    if(d<bd){bd=d;best=o}
+  }
+  return bd<.78?best:null;
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function wait(test,ms){return new Promise(r=>{const s=performance.now();(function f(){if(test()||performance.now()-s>ms)r();else requestAnimationFrame(f)})()})}
+
+async function cycle(){
+  if(busy||coins<=0)return;
+  busy=true; grabBtn.disabled=true; coinEl.textContent=--coins; msg.textContent='下爪…'; targetY=2.55;
+  await wait(()=>Math.abs(y-targetY)<.04,1800);
+  closed=true; msg.textContent='收爪'; await sleep(300);
+  const p=nearest(); const strength=Number(power.value)/100;
+  if(p && Math.random()<(.35+strength*.5)){ held=p; p.b.type=CANNON.Body.KINEMATIC; p.b.velocity.set(0,0,0); }
+  targetY=4.62; msg.textContent=held?'夾起來了！':'沒夾到…';
+  await wait(()=>Math.abs(y-targetY)<.04,1900);
+  closed=false;
+  if(held){
+    const slip=Math.random()>(.42+strength*.48);
+    held.b.type=CANNON.Body.DYNAMIC; held.b.wakeUp();
+    if(slip) msg.textContent='半路滑掉！'; else msg.textContent='放爪';
+    held=null;
+  }
+  await sleep(380); busy=false; grabBtn.disabled=false;
+}
+grabBtn.onclick=cycle;
+
+const joy=document.querySelector('#joy'),knob=document.querySelector('#knob'); let active=false,jx=0,jy=0;
+function setJoy(e){
+  const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2; let dx=e.clientX-cx,dy=e.clientY-cy;
+  const L=Math.hypot(dx,dy)||1;if(L>43){dx*=43/L;dy*=43/L}
+  jx=dx/43;jy=dy/43; knob.style.transform=`translate(${dx}px,${dy}px)`;
+}
+joy.onpointerdown=e=>{active=true;joy.setPointerCapture(e.pointerId);setJoy(e)};
+joy.onpointermove=e=>{if(active)setJoy(e)};
+joy.onpointerup=joy.onpointercancel=()=>{active=false;jx=jy=0;knob.style.transform=''};
 
 const clock=new THREE.Clock();
-function anim(){requestAnimationFrame(anim);const dt=Math.min(clock.getDelta(),1/30);if(!busy){x=Math.max(-2.3,Math.min(2.3,x+jx*dt*2.4));z=Math.max(-1.45,Math.min(1.35,z+jy*dt*2.1))}y+=(targetY-y)*Math.min(1,dt*4.5);rig.position.set(x,y,z);groups.forEach(g=>g.rotation.z=closed?.27:0);
-if(held){held.b.position.set(x,y-1.85,z);held.b.quaternion.set(0,0,0,1)}
-world.step(1/60,dt,4);for(const o of prizes){if(!o.alive)continue;o.m.position.copy(o.b.position);o.m.quaternion.copy(o.b.quaternion);const p=o.b.position;if(p.x<-1&&p.z>.65&&p.y<.22){o.alive=false;scene.remove(o.m);world.removeBody(o.b);scoreEl.textContent='出貨 '+(++score);msg.textContent='出貨成功！ 🎉'}}
-renderer.render(scene,camera)}
-anim();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),1/30);
+  if(!busy){x=Math.max(-2.32,Math.min(2.32,x+jx*dt*2.35));z=Math.max(-1.42,Math.min(1.38,z+jy*dt*2.05))}
+  y+=(targetY-y)*Math.min(1,dt*4.6);
+  rig.position.set(x,y,z); clawGroups.forEach(g=>g.rotation.z=closed?.28:0);
+  if(held){held.b.position.set(x,y-1.95,z);held.b.quaternion.set(0,0,0,1)}
+  world.step(1/60,dt,4);
+  for(const o of prizes){if(!o.alive)continue;o.m.position.copy(o.b.position);o.m.quaternion.copy(o.b.quaternion);
+    const p=o.b.position;if(p.x<-1.05&&p.z>.65&&p.y<.23){o.alive=false;scene.remove(o.m);world.removeBody(o.b);scoreEl.textContent=++score;msg.textContent='出貨成功！ 🎉'}
+  }
+  renderer.render(scene,camera);
+}
+animate();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 </script>
-</body></html>
+</body>
+</html>
