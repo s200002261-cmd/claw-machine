@@ -1,19 +1,55 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>台灣實機風娃娃機</title>
 <style>*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#171717;font-family:-apple-system,sans-serif;touch-action:none}canvas{display:block}#hud,#msg,#joy,#drop{position:fixed;z-index:10}#hud{top:12px;left:12px;background:#111c;color:#fff;padding:9px;border-radius:10px;font-weight:800}#msg{top:12px;left:50%;transform:translateX(-50%);background:#111c;color:#fff;padding:9px 13px;border-radius:10px}#joy{left:22px;bottom:25px;width:140px;height:140px;border-radius:50%;background:#ffffff22;border:1px solid #ffffff66}#knob{position:absolute;left:42px;top:42px;width:56px;height:56px;border-radius:50%;background:#fff;box-shadow:0 5px 15px #0007}#drop{right:25px;bottom:38px;width:110px;height:110px;border-radius:50%;border:8px solid #ffaaaa;background:#e54141;color:white;font-size:20px;font-weight:900}</style></head>
 <body><div id="hud">洞口：左前方<br>代幣 <span id="coins">30</span><br>出貨 <span id="score">0</span></div><div id="msg">可甩爪・真洞口：把公仔盒送進左前方落洞</div><div id="joy"><div id="knob"></div></div><button id="drop">下爪</button>
+<button id="adminBtn">後台</button>
+<div id="adminPanel">
+  <div class="adminCard">
+    <h2>娃娃機後台設定</h2>
+    <div class="tiny">設定會儲存在這台裝置的瀏覽器，下次開啟會保留。</div>
+
+    <div class="adminRow"><label>弱爪爪力</label><input id="weakPower" type="range" min="10" max="100" value="48"><span id="weakPowerV">48</span></div>
+    <div class="adminRow"><label>強爪爪力</label><input id="strongPower" type="range" min="10" max="100" value="86"><span id="strongPowerV">86</span></div>
+    <div class="adminRow"><label>保夾局數</label><input id="guaranteeEvery" type="range" min="2" max="30" value="10"><span id="guaranteeEveryV">10</span></div>
+    <div class="adminRow"><label>滑爪機率</label><input id="slipChance" type="range" min="0" max="80" value="28"><span id="slipChanceV">28</span></div>
+    <div class="adminRow"><label>公仔盒重量</label><input id="boxMass" type="range" min="40" max="150" value="80"><span id="boxMassV">80</span></div>
+    <div class="adminRow"><label>平台摩擦力</label><input id="friction" type="range" min="20" max="90" value="55"><span id="frictionV">55</span></div>
+    <div class="adminRow"><label>公仔盒數量</label><input id="boxCount" type="range" min="6" max="36" value="24"><span id="boxCountV">24</span></div>
+    <div class="adminRow"><label>盒子尺寸</label><input id="boxScale" type="range" min="70" max="130" value="100"><span id="boxScaleV">100</span></div>
+    <div class="adminRow"><label>甩爪幅度</label><input id="swingPower" type="range" min="20" max="100" value="60"><span id="swingPowerV">60</span></div>
+
+    <div class="adminActions">
+      <button class="saveBtn" id="saveAdmin">儲存設定</button>
+      <button class="resetBtn" id="closeAdmin">關閉</button>
+      <button class="resetBtn" id="respawn">重新擺盒</button>
+      <button class="dangerBtn" id="resetAll">恢復預設</button>
+    </div>
+  </div>
+</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js';
 import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
-const $=s=>document.querySelector(s),scene=new THREE.Scene();scene.background=new THREE.Color(0x222222);
+const $=s=>document.querySelector(s),scene=new THREE.Scene();
+
+const defaults={weakPower:48,strongPower:86,guaranteeEvery:10,slipChance:28,boxMass:80,friction:55,boxCount:24,boxScale:100,swingPower:60};
+let settings=Object.assign({},defaults,JSON.parse(localStorage.getItem('twClawAdmin')||'{}'));
+let playCount=0;
+scene.background=new THREE.Color(0x222222);
 const camera=new THREE.PerspectiveCamera(46,innerWidth/innerHeight,.1,100);camera.position.set(0,4.6,10.7);camera.lookAt(0,2.7,0);
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;document.body.prepend(renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xffffff,0x333333,2));const light=new THREE.DirectionalLight(0xffffff,2.6);light.position.set(4,9,6);light.castShadow=true;scene.add(light);
-const world=new CANNON.World({gravity:new CANNON.Vec3(0,-9.82,0)});world.solver.iterations=12;world.defaultContactMaterial.friction=.55;
+const world=new CANNON.World({gravity:new CANNON.Vec3(0,-9.82,0)});world.solver.iterations=12;world.defaultContactMaterial.friction=settings.friction/100;
 const M=(c,r=.55,m=.05,t=false,o=1)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m,transparent:t,opacity:o});
 function box(w,h,d,m,x,y,z){const q=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);q.position.set(x,y,z);q.castShadow=q.receiveShadow=true;scene.add(q);return q}
 function floor(w,h,d,x,y,z,m){box(w,h,d,m,x,y,z);const b=new CANNON.Body({mass:0,shape:new CANNON.Box(new CANNON.Vec3(w/2,h/2,d/2)),position:new CANNON.Vec3(x,y,z)});world.addBody(b)}
+const stat=(w,h,d,x,y,z,m)=>floor(w,h,d,x,y,z,m);
 const Y=M(0xf1bd05,.45,.12),S=M(0xaeb2b5,.3,.75),W=M(0xeee9df,.9),G=M(0xcfefff,.05,0,true,.08),D=M(0x222,.7);
-box(6.4,.55,4.7,Y,0,6.2,0);box(6.4,.6,4.7,Y,0,-.1,0);[[-3.05,3,-2.1],[3.05,3,-2.1],[-3.05,3,2.1],[3.05,3,2.1]].forEach(p=>box(.22,6,.22,Y,...p));floor(5.72,.18,3.8,0,.35,0,W);box(5.95,5.4,.03,G,0,3,2.1);box(.03,5.4,4.1,G,-3,3,0);box(.03,5.4,4.1,G,3,3,0);box(6,.14,.16,S,0,5.25,-.8);box(.16,.14,3.3,S,0,5.2,-.1);
+box(6.4,.55,4.7,Y,0,6.2,0);box(6.4,.6,4.7,Y,0,-.1,0);[[-3.05,3,-2.1],[3.05,3,-2.1],[-3.05,3,2.1],[3.05,3,2.1]].forEach(p=>box(.22,6,.22,Y,...p));
+// 分割平台，左前方保留真正落洞
+floor(5.72,.18,1.95,0,.35,-.92,W);
+floor(2.55,.18,1.82,1.58,.35,.98,W);
+floor(1.42,.18,1.82,-2.15,.35,.98,W);
+floor(1.55,.18,.52,-1.35,.35,1.63,W);
+box(5.95,5.4,.03,G,0,3,2.1);box(.03,5.4,4.1,G,-3,3,0);box(.03,5.4,4.1,G,3,3,0);box(6,.14,.16,S,0,5.25,-.8);box(.16,.14,3.3,S,0,5.2,-.1);
 const cv=document.createElement('canvas');cv.width=1000;cv.height=300;let c=cv.getContext('2d');c.fillStyle='#f4c512';c.fillRect(0,0,1000,300);c.fillStyle='#fff7d5';c.fillRect(25,25,950,250);c.fillStyle='#e64a3b';c.textAlign='center';c.font='bold 80px sans-serif';c.fillText('LUCKY CATCH',500,120);c.fillStyle='#2b73bd';c.font='bold 45px sans-serif';c.fillText('PRIZE STATION',500,190);let sign=new THREE.Mesh(new THREE.PlaneGeometry(5.7,1.7),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)}));sign.position.set(0,6.1,2.35);scene.add(sign);
 box(5.9,.55,1,Y,0,.05,2.25);box(1.6,.5,.05,D,-1.55,.05,2.78);box(.4,.6,.06,D,1.55,.08,2.78);
 // 洞口尺寸（台灣景品台常見方形落洞）
@@ -106,7 +142,7 @@ let prevX=x, prevZ=z, velX=0, velZ=0, prevVelX=0, prevVelZ=0;
 let swingX=0, swingZ=0, swingVX=0, swingVZ=0;
 const swingSpring=13.5;      // 回正速度
 const swingDamping=3.15;    // 阻尼
-const swingImpulse=0.44;    // 天車加速度對甩爪的影響
+let swingImpulse=settings.swingPower/100*.74;    // 天車加速度對甩爪的影響
 const maxSwing=0.42;        // 最大傾角（弧度，約24度）
 
 const sleep=n=>new Promise(r=>setTimeout(r,n)),wait=(f,n)=>new Promise(r=>{let s=performance.now();(function q(){if(f()||performance.now()-s>n)r();else requestAnimationFrame(q)})()});
@@ -127,21 +163,55 @@ function near(){
 }
 $('#drop').onclick=async()=>{
   if(busy||coins<1)return;
-  busy=true;$('#coins').textContent=--coins;$('#msg').textContent='下爪…';
-  // 下爪後天車停止，但甩爪慣性會保留，這就是甩爪玩法。
-  ty=3.18;
-  await wait(()=>Math.abs(y-ty)<.04,1800);
+  busy=true;playCount++;$('#coins').textContent=--coins;$('#msg').textContent='下爪…';
+  ty=3.18;await wait(()=>Math.abs(y-ty)<.04,1800);
   closed=true;await sleep(300);
   let p=near();
-  const swingPenalty=Math.min(.22,(Math.abs(swingX)+Math.abs(swingZ))*.16);
-  if(p&&Math.random()<(0.72-swingPenalty)){held=p;p.b.type=CANNON.Body.KINEMATIC}
-  ty=5;$('#msg').textContent=held?'夾起來了！':'沒夾到…';
+  const guaranteed=(playCount%settings.guaranteeEvery===0);
+  const force=(guaranteed?settings.strongPower:settings.weakPower)/100;
+  if(p&&Math.random()<(.18+force*.72)){
+    held=p;p.b.type=CANNON.Body.KINEMATIC;p.b.velocity.set(0,0,0);p.b.angularVelocity.set(0,0,0)
+  }
+  ty=5;$('#msg').textContent=held?(guaranteed?'保夾強爪！':'夾起來了！'):'沒夾到…';
   await wait(()=>Math.abs(y-ty)<.04,1900);
   closed=false;
-  if(held){held.b.type=CANNON.Body.DYNAMIC;held.b.wakeUp();held=null}
+  if(held){
+    const o=held;o.b.type=CANNON.Body.DYNAMIC;o.b.wakeUp();
+    const slip=guaranteed?false:(Math.random()<settings.slipChance/100);
+    if(slip){o.b.applyImpulse(new CANNON.Vec3((Math.random()-.5)*.5,0,(Math.random()-.5)*.5));$('#msg').textContent='滑爪！'}
+    else $('#msg').textContent='放爪';
+    held=null
+  }
   await sleep(350);busy=false
 };
 let joy=$('#joy'),knob=$('#knob'),active=false;function jm(e){let r=joy.getBoundingClientRect(),dx=e.clientX-r.left-70,dy=e.clientY-r.top-70,L=Math.hypot(dx,dy)||1;if(L>42){dx*=42/L;dy*=42/L}jx=dx/42;jy=dy/42;knob.style.transform=`translate(${dx}px,${dy}px)`}joy.onpointerdown=e=>{active=true;joy.setPointerCapture(e.pointerId);jm(e)};joy.onpointermove=e=>{if(active)jm(e)};joy.onpointerup=()=>{active=false;jx=jy=0;knob.style.transform=''};
+
+const adminIds=['weakPower','strongPower','guaranteeEvery','slipChance','boxMass','friction','boxCount','boxScale','swingPower'];
+function syncAdmin(){
+  adminIds.forEach(id=>{const el=$('#'+id),v=$('#'+id+'V');el.value=settings[id];if(v)v.textContent=settings[id]})
+}
+syncAdmin();
+adminIds.forEach(id=>$('#'+id).oninput=e=>{const v=$('#'+id+'V');if(v)v.textContent=e.target.value});
+$('#adminBtn').onclick=()=>{$('#adminPanel').classList.add('show');syncAdmin()};
+$('#closeAdmin').onclick=()=>$('#adminPanel').classList.remove('show');
+$('#saveAdmin').onclick=()=>{
+  adminIds.forEach(id=>settings[id]=Number($('#'+id).value));
+  localStorage.setItem('twClawAdmin',JSON.stringify(settings));
+  world.defaultContactMaterial.friction=settings.friction/100;
+  swingImpulse=settings.swingPower/100*.74;
+  $('#adminPanel').classList.remove('show');
+  $('#msg').textContent='後台設定已儲存'
+};
+$('#respawn').onclick=()=>{
+  adminIds.forEach(id=>settings[id]=Number($('#'+id).value));
+  spawnPrizes();$('#msg').textContent='公仔盒已重新擺放'
+};
+$('#resetAll').onclick=()=>{
+  settings=Object.assign({},defaults);localStorage.removeItem('twClawAdmin');syncAdmin();
+  world.defaultContactMaterial.friction=settings.friction/100;swingImpulse=settings.swingPower/100*.74;spawnPrizes();
+  $('#msg').textContent='已恢復預設'
+};
+
 let clock=new THREE.Clock();
 function anim(){
   requestAnimationFrame(anim);
@@ -193,4 +263,11 @@ function anim(){
 }
 anim();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script><script>
+window.addEventListener('error',e=>{
+ const d=document.createElement('div');
+ d.style='position:fixed;z-index:9999;left:10px;right:10px;bottom:10px;background:#8b0000;color:white;padding:10px;border-radius:8px;font:12px sans-serif';
+ d.textContent='載入錯誤：'+(e.message||'請確認網路連線後重新整理');
+ document.body.appendChild(d);
+});
 </script></body></html>
