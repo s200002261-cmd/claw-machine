@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>台灣實機風娃娃機</title>
 <style>*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#171717;font-family:-apple-system,sans-serif;touch-action:none}canvas{display:block}#hud,#msg,#joy,#drop{position:fixed;z-index:10}#hud{top:12px;left:12px;background:#111c;color:#fff;padding:9px;border-radius:10px;font-weight:800}#msg{top:12px;left:50%;transform:translateX(-50%);background:#111c;color:#fff;padding:9px 13px;border-radius:10px}#joy{left:22px;bottom:25px;width:140px;height:140px;border-radius:50%;background:#ffffff22;border:1px solid #ffffff66}#knob{position:absolute;left:42px;top:42px;width:56px;height:56px;border-radius:50%;background:#fff;box-shadow:0 5px 15px #0007}#drop{right:25px;bottom:38px;width:110px;height:110px;border-radius:50%;border:8px solid #ffaaaa;background:#e54141;color:white;font-size:20px;font-weight:900}</style></head>
-<body><div id="hud">代幣 <span id="coins">30</span><br>出貨 <span id="score">0</span></div><div id="msg">移動天車，對準公仔盒</div><div id="joy"><div id="knob"></div></div><button id="drop">下爪</button>
+<body><div id="hud">洞口：左前方<br>代幣 <span id="coins">30</span><br>出貨 <span id="score">0</span></div><div id="msg">可甩爪・真洞口：把公仔盒送進左前方落洞</div><div id="joy"><div id="knob"></div></div><button id="drop">下爪</button>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js';
 import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
@@ -15,14 +15,182 @@ function floor(w,h,d,x,y,z,m){box(w,h,d,m,x,y,z);const b=new CANNON.Body({mass:0
 const Y=M(0xf1bd05,.45,.12),S=M(0xaeb2b5,.3,.75),W=M(0xeee9df,.9),G=M(0xcfefff,.05,0,true,.08),D=M(0x222,.7);
 box(6.4,.55,4.7,Y,0,6.2,0);box(6.4,.6,4.7,Y,0,-.1,0);[[-3.05,3,-2.1],[3.05,3,-2.1],[-3.05,3,2.1],[3.05,3,2.1]].forEach(p=>box(.22,6,.22,Y,...p));floor(5.72,.18,3.8,0,.35,0,W);box(5.95,5.4,.03,G,0,3,2.1);box(.03,5.4,4.1,G,-3,3,0);box(.03,5.4,4.1,G,3,3,0);box(6,.14,.16,S,0,5.25,-.8);box(.16,.14,3.3,S,0,5.2,-.1);
 const cv=document.createElement('canvas');cv.width=1000;cv.height=300;let c=cv.getContext('2d');c.fillStyle='#f4c512';c.fillRect(0,0,1000,300);c.fillStyle='#fff7d5';c.fillRect(25,25,950,250);c.fillStyle='#e64a3b';c.textAlign='center';c.font='bold 80px sans-serif';c.fillText('LUCKY CATCH',500,120);c.fillStyle='#2b73bd';c.font='bold 45px sans-serif';c.fillText('PRIZE STATION',500,190);let sign=new THREE.Mesh(new THREE.PlaneGeometry(5.7,1.7),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)}));sign.position.set(0,6.1,2.35);scene.add(sign);
-box(5.9,.55,1,Y,0,.05,2.25);box(1.6,.5,.05,D,-1.55,.05,2.78);box(.4,.6,.06,D,1.55,.08,2.78);box(1.55,.05,1.08,D,-1.75,.46,1.15);
+box(5.9,.55,1,Y,0,.05,2.25);box(1.6,.5,.05,D,-1.55,.05,2.78);box(.4,.6,.06,D,1.55,.08,2.78);
+// 洞口尺寸（台灣景品台常見方形落洞）
+const holeX=-1.72, holeZ=1.02, holeW=1.55, holeD=1.18;
+
+// 洞底與內壁做成真正下凹式取物通道
+box(holeW,.05,holeD,D,holeX,-.62,holeZ);
+stat(.12,.92,holeD,holeX-holeW/2,.00,holeZ,D);   // 左壁
+stat(.12,.92,holeD,holeX+holeW/2,.00,holeZ,D);   // 右壁
+stat(holeW,.92,.12,holeX,.00,holeZ-holeD/2,D);   // 後壁
+const ramp=new THREE.Mesh(new THREE.BoxGeometry(holeW*.9,.08,holeD*.75),D);
+ramp.position.set(holeX,-.28,holeZ+.04);
+ramp.rotation.x=-0.18;
+ramp.receiveShadow=true;scene.add(ramp);
+const rampBody=new CANNON.Body({mass:0,shape:new CANNON.Box(new CANNON.Vec3(holeW*.45,.04,holeD*.375))});
+rampBody.position.set(holeX,-.28,holeZ+.04);
+rampBody.quaternion.setFromEuler(-0.18,0,0);
+world.addBody(rampBody);
+
+// 前方保持開放，讓獎品掉下去像實機出貨
+
+// 洞口黃色框
+box(holeW+.22,.10,.12,Y,holeX,.43,holeZ-holeD/2-.04);
+box(holeW+.22,.10,.12,Y,holeX,.43,holeZ+holeD/2+.04);
+box(.12,.10,holeD,Y,holeX-holeW/2-.06,.43,holeZ);
+box(.12,.10,holeD,Y,holeX+holeW/2+.06,.43,holeZ);
+
 const prizes=[];for(let i=0;i<24;i++){let sx=.65,sy=.9,sz=.32,m=box(sx,sy,sz,M([0xf4dddd,0xdde8f7,0xf7ecd2,0xe7ddf7,0xdff1df][i%5]),-2.2+Math.random()*4.4,.7+Math.random()*1.6,-1.3+Math.random()*2.3);let b=new CANNON.Body({mass:.8,shape:new CANNON.Box(new CANNON.Vec3(sx/2,sy/2,sz/2))});b.position.copy(m.position);b.quaternion.setFromEuler((Math.random()-.5)*.4,Math.random()*2,(Math.random()-.5)*.4);world.addBody(b);prizes.push({m,b,on:true})}
-const rig=new THREE.Group();scene.add(rig);rig.position.set(0,5,-.1);let car=new THREE.Mesh(new THREE.BoxGeometry(.7,.3,.68),Y);rig.add(car);let rod=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,1.15,10),D);rod.position.y=-.7;rig.add(rod);let hub=new THREE.Mesh(new THREE.SphereGeometry(.17,14,10),S);hub.position.y=-1.35;rig.add(hub);const claws=[];[0,2.094,4.188].forEach(a=>{let g=new THREE.Group();g.position.y=-1.4;g.rotation.y=a;let arm=new THREE.Mesh(new THREE.BoxGeometry(.07,.8,.07),S);arm.position.set(.29,-.36,0);arm.rotation.z=-.43;g.add(arm);let tip=new THREE.Mesh(new THREE.BoxGeometry(.09,.4,.12),S);tip.position.set(.49,-.78,0);tip.rotation.z=.58;g.add(tip);rig.add(g);claws.push(g)});
+const carriageRig=new THREE.Group();scene.add(carriageRig);carriageRig.position.set(0,5,-.1);
+
+// 台灣一般選物販賣機常見天車：方形滑車＋黑色捲線盒
+let car=new THREE.Mesh(new THREE.BoxGeometry(.78,.28,.72),Y);car.castShadow=true;carriageRig.add(car);
+let motorBox=new THREE.Mesh(new THREE.BoxGeometry(.44,.28,.42),D);motorBox.position.y=-.24;motorBox.castShadow=true;carriageRig.add(motorBox);
+
+// 吊線：比舊版細、長，甩爪時更像實機
+const swingPivot=new THREE.Group();swingPivot.position.set(0,-.31,0);carriageRig.add(swingPivot);
+let cable=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,1.22,10),D);cable.position.y=-.61;swingPivot.add(cable);
+
+// 爪頭：圓柱電磁盒＋下方旋轉盤
+let clawHead=new THREE.Mesh(new THREE.CylinderGeometry(.19,.22,.30,20),S);
+clawHead.position.y=-1.28;clawHead.castShadow=true;swingPivot.add(clawHead);
+let collar=new THREE.Mesh(new THREE.CylinderGeometry(.24,.24,.09,20),D);
+collar.position.y=-1.46;swingPivot.add(collar);
+
+// 台灣機常見三爪：細長金屬爪臂、外張弧度較大、末端向內勾
+const claws=[];
+[0,Math.PI*2/3,Math.PI*4/3].forEach(a=>{
+  const g=new THREE.Group();
+  g.position.y=-1.48;
+  g.rotation.y=a;
+
+  // 上段連桿
+  const upper=new THREE.Mesh(new THREE.BoxGeometry(.055,.48,.055),S);
+  upper.position.set(.16,-.20,0);
+  upper.rotation.z=-.55;
+  upper.castShadow=true;
+  g.add(upper);
+
+  // 中段長爪
+  const lower=new THREE.Mesh(new THREE.BoxGeometry(.055,.56,.06),S);
+  lower.position.set(.38,-.58,0);
+  lower.rotation.z=-.27;
+  lower.castShadow=true;
+  g.add(lower);
+
+  // 末端爪鉤，向內彎，方便勾盒角
+  const hook=new THREE.Mesh(new THREE.BoxGeometry(.065,.25,.085),S);
+  hook.position.set(.43,-.96,0);
+  hook.rotation.z=.48;
+  hook.castShadow=true;
+  g.add(hook);
+
+  // 爪尖橡膠套
+  const rubber=new THREE.Mesh(new THREE.BoxGeometry(.075,.11,.10),D);
+  rubber.position.set(.37,-1.10,0);
+  rubber.rotation.z=.48;
+  g.add(rubber);
+
+  swingPivot.add(g);
+  claws.push(g);
+});
+
+// 爪子開合角度。張開時像實機大開口，收爪時三爪往中心夾。
+const clawOpenAngle=-0.05;
+const clawClosedAngle=0.43;
 let x=0,z=-.1,y=5,ty=5,busy=false,closed=false,held=null,coins=30,score=0,jx=0,jy=0;
+
+// 甩爪物理：天車加速度會讓吊爪產生反向慣性，之後像鐘擺一樣衰減。
+let prevX=x, prevZ=z, velX=0, velZ=0, prevVelX=0, prevVelZ=0;
+let swingX=0, swingZ=0, swingVX=0, swingVZ=0;
+const swingSpring=13.5;      // 回正速度
+const swingDamping=3.15;    // 阻尼
+const swingImpulse=0.44;    // 天車加速度對甩爪的影響
+const maxSwing=0.42;        // 最大傾角（弧度，約24度）
+
 const sleep=n=>new Promise(r=>setTimeout(r,n)),wait=(f,n)=>new Promise(r=>{let s=performance.now();(function q(){if(f()||performance.now()-s>n)r();else requestAnimationFrame(q)})()});
-function near(){let a=null,d=99;for(const o of prizes){if(!o.on)continue;let n=Math.hypot(o.b.position.x-x,o.b.position.z-z,(o.b.position.y-(y-2))*.7);if(n<d){d=n;a=o}}return d<.82?a:null}
-$('#drop').onclick=async()=>{if(busy||coins<1)return;busy=true;$('#coins').textContent=--coins;$('#msg').textContent='下爪…';ty=2.7;await wait(()=>Math.abs(y-ty)<.04,1800);closed=true;await sleep(300);let p=near();if(p&&Math.random()<.68){held=p;p.b.type=CANNON.Body.KINEMATIC}ty=5;$('#msg').textContent=held?'夾起來了！':'沒夾到…';await wait(()=>Math.abs(y-ty)<.04,1900);closed=false;if(held){held.b.type=CANNON.Body.DYNAMIC;held.b.wakeUp();held=null}await sleep(350);busy=false};
+function clawWorldPoint(){
+  const p=new THREE.Vector3(0,-2.57,0);
+  swingPivot.localToWorld(p);
+  return p;
+}
+function near(){
+  const cp=clawWorldPoint();
+  let a=null,d=99;
+  for(const o of prizes){
+    if(!o.on)continue;
+    let n=Math.hypot(o.b.position.x-cp.x,o.b.position.z-cp.z,(o.b.position.y-cp.y)*.7);
+    if(n<d){d=n;a=o}
+  }
+  return d<.84?a:null
+}
+$('#drop').onclick=async()=>{
+  if(busy||coins<1)return;
+  busy=true;$('#coins').textContent=--coins;$('#msg').textContent='下爪…';
+  // 下爪後天車停止，但甩爪慣性會保留，這就是甩爪玩法。
+  ty=3.18;
+  await wait(()=>Math.abs(y-ty)<.04,1800);
+  closed=true;await sleep(300);
+  let p=near();
+  const swingPenalty=Math.min(.22,(Math.abs(swingX)+Math.abs(swingZ))*.16);
+  if(p&&Math.random()<(0.72-swingPenalty)){held=p;p.b.type=CANNON.Body.KINEMATIC}
+  ty=5;$('#msg').textContent=held?'夾起來了！':'沒夾到…';
+  await wait(()=>Math.abs(y-ty)<.04,1900);
+  closed=false;
+  if(held){held.b.type=CANNON.Body.DYNAMIC;held.b.wakeUp();held=null}
+  await sleep(350);busy=false
+};
 let joy=$('#joy'),knob=$('#knob'),active=false;function jm(e){let r=joy.getBoundingClientRect(),dx=e.clientX-r.left-70,dy=e.clientY-r.top-70,L=Math.hypot(dx,dy)||1;if(L>42){dx*=42/L;dy*=42/L}jx=dx/42;jy=dy/42;knob.style.transform=`translate(${dx}px,${dy}px)`}joy.onpointerdown=e=>{active=true;joy.setPointerCapture(e.pointerId);jm(e)};joy.onpointermove=e=>{if(active)jm(e)};joy.onpointerup=()=>{active=false;jx=jy=0;knob.style.transform=''};
-let clock=new THREE.Clock();function anim(){requestAnimationFrame(anim);let dt=Math.min(clock.getDelta(),1/30);if(!busy){x=Math.max(-2.3,Math.min(2.3,x+jx*dt*2.3));z=Math.max(-1.4,Math.min(1.3,z+jy*dt*2))}y+=(ty-y)*Math.min(1,dt*4.5);rig.position.set(x,y,z);claws.forEach(g=>g.rotation.z=closed?.29:0);if(held){held.b.position.set(x,y-1.95,z);held.b.quaternion.set(0,0,0,1)}world.step(1/60,dt,4);for(const o of prizes){if(!o.on)continue;o.m.position.copy(o.b.position);o.m.quaternion.copy(o.b.quaternion);let p=o.b.position;if(p.x<-1&&p.z>.65&&p.y<.3){o.on=false;scene.remove(o.m);world.removeBody(o.b);$('#score').textContent=++score;$('#msg').textContent='出貨成功！'}}renderer.render(scene,camera)}anim();
+let clock=new THREE.Clock();
+function anim(){
+  requestAnimationFrame(anim);
+  let dt=Math.min(clock.getDelta(),1/30);
+
+  // 天車只有非下爪階段能移動。
+  if(!busy){
+    x=Math.max(-2.3,Math.min(2.3,x+jx*dt*2.3));
+    z=Math.max(-1.4,Math.min(1.3,z+jy*dt*2.0));
+  }
+
+  // 由天車速度變化計算加速度，快速反打方向就會產生明顯甩爪。
+  velX=(x-prevX)/Math.max(dt,.001);
+  velZ=(z-prevZ)/Math.max(dt,.001);
+  const accX=(velX-prevVelX)/Math.max(dt,.001);
+  const accZ=(velZ-prevVelZ)/Math.max(dt,.001);
+  swingVX += (-accZ*swingImpulse - swingSpring*swingX - swingDamping*swingVX)*dt;
+  swingVZ += ( accX*swingImpulse - swingSpring*swingZ - swingDamping*swingVZ)*dt;
+  swingX += swingVX*dt;
+  swingZ += swingVZ*dt;
+  swingX=Math.max(-maxSwing,Math.min(maxSwing,swingX));
+  swingZ=Math.max(-maxSwing,Math.min(maxSwing,swingZ));
+
+  prevX=x;prevZ=z;prevVelX=velX;prevVelZ=velZ;
+
+  y+=(ty-y)*Math.min(1,dt*4.5);
+  carriageRig.position.set(x,y,z);
+  swingPivot.rotation.x=swingX;
+  swingPivot.rotation.z=swingZ;
+  claws.forEach(g=>g.rotation.z=closed?clawClosedAngle:clawOpenAngle);
+
+  if(held){
+    const cp=clawWorldPoint();
+    held.b.position.set(cp.x,cp.y,cp.z);
+    held.b.quaternion.set(0,0,0,1)
+  }
+
+  world.step(1/60,dt,4);
+  for(const o of prizes){
+    if(!o.on)continue;
+    o.m.position.copy(o.b.position);o.m.quaternion.copy(o.b.quaternion);
+    let p=o.b.position;
+    if(p.x>holeX-holeW/2 && p.x<holeX+holeW/2 && p.z>holeZ-holeD/2 && p.z<holeZ+holeD/2 && p.y<.05){
+      o.on=false;scene.remove(o.m);world.removeBody(o.b);
+      $('#score').textContent=++score;$('#msg').textContent='出貨成功！'
+    }
+  }
+  renderer.render(scene,camera)
+}
+anim();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 </script></body></html>
